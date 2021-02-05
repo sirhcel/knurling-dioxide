@@ -52,9 +52,7 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
         let mut crc = self.new_sdc30_crc();
         crc.update(&response[0..2]);
         let our_crc = crc.finish();
-
-        defmt::trace!("response: {:[u8]}", response);
-        defmt::trace!("our_crc: {:u8}", our_crc);
+        defmt::trace!("response: {:[u8]}, our_crc: {:u8}", response, our_crc);
 
         if response_crc == our_crc {
             Ok(FirmwareVersion{ major, minor })
