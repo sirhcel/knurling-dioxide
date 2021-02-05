@@ -5,7 +5,7 @@
 
 
 use crc_all::Crc;
-use embedded_hal::blocking::i2c::{Write, WriteRead};
+use embedded_hal::blocking::i2c::{Read, Write};
 use defmt::Format;
 
 
@@ -20,7 +20,7 @@ pub struct FirmwareVersion {
 }
 
 
-pub struct Scd30<I2C: Write + WriteRead> {
+pub struct Scd30<I2C: Read + Write> {
     i2c: I2C,
 }
 
@@ -32,7 +32,7 @@ pub const I2C_ADDRESS: u8 = 0x61;
 
 
 
-impl<I2C, E> Scd30<I2C> where I2C: Write<Error = E> + WriteRead<Error = E> {
+impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
     pub fn new(i2c: I2C) -> Self {
         Scd30{ i2c }
     }
@@ -42,9 +42,8 @@ impl<I2C, E> Scd30<I2C> where I2C: Write<Error = E> + WriteRead<Error = E> {
         let command: [u8; 2] = [0xd1, 0x00];
         let mut response = [0u8; 3];
 
-        // FIXME: Cross check whether write_read pauses at least 3 ms between
-        // the inital address write and the repeated start condition.
-        self.i2c.write_read(I2C_ADDRESS, &command, &mut response)?;
+        self.i2c.write(I2C_ADDRESS, &command)?;
+        self.i2c.read(I2C_ADDRESS, &mut response)?;
 
         let major = response[0];
         let minor = response[1];
