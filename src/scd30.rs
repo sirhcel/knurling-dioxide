@@ -87,7 +87,7 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
 
     fn new_sdc30_crc(&self) -> Crc<u8> {
         // See 'Interface Description Sensirion SCD30 Sensor Module', section
-        // 1.1.3 'I2C Checksum calculation'.
+        // 1.1.3 'I2C Checksum calculation' for CRC parameter definition.
         Crc::<u8>::new(0x31, 8, 0xff, 0x00, false)
     }
 }
