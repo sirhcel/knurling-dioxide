@@ -3,12 +3,14 @@
 
 
 use dioxide as _; // global logger + panicking-behavior + memory layout
+use dioxide::scd30;
 use embedded_hal::blocking::delay::DelayMs;
 use nrf52840_hal::{
-    self as hal,
-    gpio::{p0::Parts as P0Parts, Level},
     Temp,
     Timer,
+    gpio::{p0::Parts as P0Parts, Level},
+    self as hal,
+    twim::{self, Twim, Error, Instance},
 };
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
 
@@ -28,6 +30,12 @@ fn main() -> ! {
 
     let button_1 = pins.p0_11.into_pullup_input().into_active_low_switch();
 
+    let scl = pins.p0_30.degrade();
+    let sda = pins.p0_31.degrade();
+    let i2c_pins = twim::Pins{ scl, sda };
+    let i2c = Twim::new(board.TWIM0, i2c_pins, twim::Frequency::K100);
+    let mut sensor = scd30::Scd30::new(i2c);
+
     defmt::info!("Turning LED on ...");
     led_1.on().unwrap();
     timer.delay_ms(1000u32);
@@ -35,6 +43,10 @@ fn main() -> ! {
     defmt::info!("Measuring temperature ...");
     let temperature = temp.measure();
     defmt::info!("temperature: {:f32} °C", temperature.to_num());
+
+    let sensor_fw_version = sensor.get_firmware_version().unwrap();
+    defmt::info!("SCD30 firmware version: {:?}", sensor_fw_version);
+
 
     defmt::info!("Entering LED loop ...");
 
