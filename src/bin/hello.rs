@@ -10,7 +10,7 @@ use nrf52840_hal::{
     Timer,
     gpio::{p0::Parts as P0Parts, Level},
     self as hal,
-    twim::{self, Twim, Error, Instance},
+    twim::{self, Twim},
 };
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
 
