@@ -102,8 +102,51 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
         self.i2c.read(I2C_ADDRESS, &mut response)?;
         defmt::trace!("response: {:[u8]}", response);
 
-        // FIXME: Process response data and provide a meaningful result.
-        Ok(Measurement{ co2_ppm: -1.0, temperature_celsius: -1.0, humidity_percent: -1.0 })
+        let co2_m_be = &response[0..2];
+        let co2_m_crc = response[2];
+        let co2_l_be = &response[3..5];
+        let co2_l_crc = response[5];
+        let t_m_be = &response[6..8];
+        let t_m_crc = response[8];
+        let t_l_be = &response[9..11];
+        let t_l_crc = response[11];
+        let rh_m_be = &response[12..14];
+        let rh_m_crc = response[14];
+        let rh_l_be = &response[15..17];
+        let rh_l_crc = response[17];
+
+        if co2_m_crc == self.sdc30_crc(&co2_m_be)
+            && co2_l_crc == self.sdc30_crc(&co2_l_be)
+            && t_m_crc == self.sdc30_crc(&t_m_be)
+            && t_l_crc == self.sdc30_crc(&t_l_be)
+            && rh_m_crc == self.sdc30_crc(&rh_m_be)
+            && rh_l_crc == self.sdc30_crc(&rh_l_be)
+        {
+            let measurement = Measurement {
+                co2_ppm: f32::from_bits(u32::from_be_bytes([
+                    co2_m_be[0],
+                    co2_m_be[1],
+                    co2_l_be[0],
+                    co2_l_be[1],
+                ])),
+                temperature_celsius: f32::from_bits(u32::from_be_bytes([
+                    t_m_be[0],
+                    t_m_be[1],
+                    t_l_be[0],
+                    t_l_be[1],
+                ])),
+                humidity_percent: f32::from_bits(u32::from_be_bytes([
+                    rh_m_be[0],
+                    rh_m_be[1],
+                    rh_l_be[0],
+                    rh_l_be[1],
+                ])),
+            };
+
+            Ok(measurement)
+        } else {
+            Err(Error::<E>::CrcError)
+        }
     }
 
 
