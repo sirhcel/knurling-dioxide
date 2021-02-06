@@ -46,9 +46,11 @@ fn main() -> ! {
 
     let sensor_fw_version = sensor.get_firmware_version().unwrap();
     defmt::info!("SCD30 firmware version: {:?}", sensor_fw_version);
+    let pressure_mbar = 1020_u16;
+    sensor.start_continuous_measurement(pressure_mbar).unwrap();
 
 
-    defmt::info!("Entering LED loop ...");
+    defmt::info!("Entering loop ...");
 
     loop {
         led_1.on().unwrap();
@@ -56,6 +58,12 @@ fn main() -> ! {
             defmt::info!("Button 1 pressed");
             led_2.on().unwrap();
         }
+
+        if sensor.is_measurement_ready().unwrap() {
+            let measurement = sensor.get_measurement().unwrap();
+            defmt::info!("measurement: {:?}", measurement);
+        }
+
         timer.delay_ms(500u32);
         led_1.off().unwrap();
         led_2.off().unwrap();
