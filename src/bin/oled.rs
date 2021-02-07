@@ -2,15 +2,22 @@
 #![no_std]
 
 
+use core::fmt::Write;
 use dioxide as _; // global logger + panicking-behavior + memory layout
 use dioxide::scd30;
 use embedded_graphics::{
+    egtext,
     fonts::{Font6x8, Text},
     pixelcolor::BinaryColor,
     prelude::*,
-    style::TextStyle,
+    primitives::Rectangle,
+    style::{PrimitiveStyleBuilder, TextStyle},
+    text_style,
 };
 use embedded_hal::blocking::delay::DelayMs;
+use heapless::{
+    String,
+    consts::*};
 use nrf52840_hal::{
     Temp,
     Timer,
@@ -72,6 +79,12 @@ fn main() -> ! {
         .unwrap();
     oled.flush().unwrap();
 
+    let clear_style = PrimitiveStyleBuilder::new()
+        .fill_color(BinaryColor::Off)
+        .build();
+    let clear_rect = Rectangle::new(Point::new(0, 32), Point::new(128, 40))
+        .into_styled(clear_style);
+
 
     defmt::info!("Entering loop ...");
 
@@ -85,6 +98,18 @@ fn main() -> ! {
         if sensor.is_measurement_ready().unwrap() {
             let measurement = sensor.get_measurement().unwrap();
             defmt::info!("measurement: {:?}", measurement);
+
+            // Clear and draw a "line" of text.
+            clear_rect.draw(&mut oled).unwrap();
+            let mut message: String<U16> = String::new();
+            write!(&mut message, "CO2: {:.2} ppm", measurement.co2_ppm)
+                .expect("failed to write to buffer");
+            egtext!(
+                text = &message,
+                top_left = (0, 32),
+                style = text_style!(font = Font6x8, text_color = BinaryColor::On)
+            ).draw(&mut oled).unwrap();
+            oled.flush().unwrap();
         }
 
         timer.delay_ms(500u32);
