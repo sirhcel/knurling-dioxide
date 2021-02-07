@@ -29,16 +29,16 @@ pub enum Error<E> {
 // this struct via defmt?
 #[derive(Format)]
 pub struct FirmwareVersion {
-    major: u8,
-    minor: u8,
+    pub major: u8,
+    pub minor: u8,
 }
 
 
 #[derive(Format)]
 pub struct Measurement {
-    co2_ppm: f32,
-    temperature_celsius: f32,
-    humidity_percent: f32,
+    pub co2_ppm: f32,
+    pub temperature_celsius: f32,
+    pub humidity_percent: f32,
 }
 
 
