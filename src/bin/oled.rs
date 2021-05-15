@@ -13,9 +13,7 @@ use embedded_graphics::{
     style::{PrimitiveStyleBuilder, TextStyle},
 };
 use embedded_hal::blocking::delay::DelayMs;
-use heapless::{
-    String,
-    consts::*};
+use heapless::String;
 use nrf52840_hal::{
     Temp,
     Timer,
@@ -45,7 +43,7 @@ fn build_co2_clear_rect() -> impl Iterator<Item = Pixel<BinaryColor>> {
 
 fn draw_measurement<D: DrawTarget<BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
     let style = TextStyle::new(Font6x8, BinaryColor::On);
-    let mut message: String<U16> = String::new();
+    let mut message: String<16> = String::new();
 
     build_co2_clear_rect().draw(target)?;
 
