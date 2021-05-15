@@ -80,7 +80,7 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
         let minor = response[1];
         let response_crc = response[2];
         let our_crc = self.sdc30_crc(&response[0..2]);
-        defmt::trace!("response: {:[u8]}, our_crc: {:u8}", response, our_crc);
+        defmt::trace!("response: {=[u8]}, our_crc: {=u8}", response, our_crc);
 
         if response_crc == our_crc {
             Ok(FirmwareVersion{ major, minor })
@@ -100,7 +100,7 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
         // stop of the command and the start for reading the response.
         // Shouldn't there be an explicit delay here?
         self.i2c.read(I2C_ADDRESS, &mut response)?;
-        defmt::trace!("response: {:[u8]}", response);
+        defmt::trace!("response: {=[u8]}", response);
 
         let co2_m_be = &response[0..2];
         let co2_m_crc = response[2];
@@ -194,7 +194,7 @@ impl<I2C, E> Scd30<I2C> where I2C: Read<Error = E> + Write<Error = E> {
         let pressure_be = pressure.to_be_bytes();
         command[2..4].copy_from_slice(&pressure_be);
         command[4] = self.sdc30_crc(&pressure_be);
-        defmt::trace!("command: {:[u8]}", command);
+        defmt::trace!("command: {=[u8]}", command);
 
         self.i2c.write(I2C_ADDRESS, &command)?;
         Ok(())
