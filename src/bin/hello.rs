@@ -135,6 +135,8 @@ fn main() -> ! {
 
     defmt::info!("Entering loop ...");
 
+    let mut updates = 0usize;
+
     loop {
         led_1.on().unwrap();
         if button_1.is_active().unwrap() {
@@ -145,6 +147,11 @@ fn main() -> ! {
         if sensor.is_measurement_ready().unwrap() {
             let measurement = sensor.get_measurement().unwrap();
             defmt::info!("measurement: {:?}", measurement);
+
+            defmt::info!("updates: {}", updates);
+            let lut = if updates % 5 == 0 { RefreshLUT::FULL } else { RefreshLUT::QUICK };
+            epd.set_lut(&mut spi, Some(lut)).unwrap();
+            updates += 1;
 
             draw_measurement(&mut display, &measurement).unwrap();
             epd.update_frame(&mut spi, &display.buffer()).unwrap();
