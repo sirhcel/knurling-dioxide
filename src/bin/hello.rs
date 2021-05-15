@@ -2,14 +2,19 @@
 #![no_std]
 
 
+use core::fmt::Write;
 use dioxide as _; // global logger + panicking-behavior + memory layout
 use dioxide::scd30;
 use embedded_graphics::{
-    fonts::{Font24x32, Text},
+    fonts::{Font12x16, Font24x32, Text},
     geometry::Point,
     pixelcolor::BinaryColor,
     prelude::*,
-    style::TextStyle,
+    primitives::Rectangle,
+    style::{
+        PrimitiveStyleBuilder,
+        TextStyle,
+    },
 };
 use embedded_hal::blocking::delay::DelayMs;
 use epd_waveshare::{
@@ -17,6 +22,7 @@ use epd_waveshare::{
     graphics::Display,
     prelude::*,
 };
+use heapless::String;
 use nrf52840_hal::{
     Temp,
     Timer,
@@ -26,6 +32,47 @@ use nrf52840_hal::{
     twim::{self, Twim},
 };
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
+
+
+fn build_clear_rect() -> impl Iterator<Item = Pixel<BinaryColor>> {
+    let style = PrimitiveStyleBuilder::new()
+        .fill_color(BinaryColor::Off)
+        .build();
+
+    Rectangle::new(Point::new(20, 100), Point::new(380, 159))
+        .into_styled(style)
+        .into_iter()
+}
+
+
+fn draw_measurement<D: DrawTarget<BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
+    let style = TextStyle::new(Font12x16, BinaryColor::On);
+    let mut message: String<16> = String::new();
+
+    build_clear_rect().draw(target)?;
+
+    write!(&mut message, "CO2: {:.2} ppm", measurement.co2_ppm)
+        .expect("failed to write to buffer");
+    Text::new(&message, Point::new(20, 100))
+        .into_styled(style)
+        .draw(target)?;
+
+    message.clear();
+    write!(&mut message, "T:   {:.2} °C", measurement.temperature_celsius)
+        .expect("failed to write to buffer");
+    Text::new(&message, Point::new(20, 120))
+        .into_styled(style)
+        .draw(target)?;
+
+    message.clear();
+    write!(&mut message, "RH:  {:.2} %", measurement.humidity_percent)
+        .expect("failed to write to buffer");
+    Text::new(&message, Point::new(20, 140))
+        .into_styled(style)
+        .draw(target)?;
+
+    Ok(())
+}
 
 
 #[cortex_m_rt::entry]
@@ -98,11 +145,15 @@ fn main() -> ! {
         if sensor.is_measurement_ready().unwrap() {
             let measurement = sensor.get_measurement().unwrap();
             defmt::info!("measurement: {:?}", measurement);
+
+            draw_measurement(&mut display, &measurement).unwrap();
+            epd.update_frame(&mut spi, &display.buffer()).unwrap();
+            epd.display_frame(&mut spi).expect("display new measurement frame");
         }
 
-        timer.delay_ms(500u32);
+        timer.delay_ms(5000u32);
         led_1.off().unwrap();
         led_2.off().unwrap();
-        timer.delay_ms(500u32);
+        timer.delay_ms(5000u32);
     }
 }
