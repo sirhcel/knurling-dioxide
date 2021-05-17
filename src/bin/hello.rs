@@ -153,8 +153,9 @@ fn main() -> ! {
             epd.set_lut(&mut spi, Some(lut)).unwrap();
             updates += 1;
 
+            epd.update_old_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
             draw_measurement(&mut display, &measurement).unwrap();
-            epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+            epd.update_new_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
             epd.display_frame(&mut spi, &mut epd_timer).expect("display new measurement frame");
         }
 
