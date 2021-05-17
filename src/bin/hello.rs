@@ -34,6 +34,9 @@ use nrf52840_hal::{
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
 
 
+const MAX_QUICK_UPDATES: usize = 10;
+
+
 fn build_clear_rect() -> impl Iterator<Item = Pixel<BinaryColor>> {
     let style = PrimitiveStyleBuilder::new()
         .fill_color(BinaryColor::Off)
@@ -149,7 +152,7 @@ fn main() -> ! {
             defmt::info!("measurement: {:?}", measurement);
 
             defmt::info!("updates: {}", updates);
-            let lut = if updates % 5 == 0 { RefreshLUT::FULL } else { RefreshLUT::QUICK };
+            let lut = if updates % MAX_QUICK_UPDATES == 0 { RefreshLUT::FULL } else { RefreshLUT::QUICK };
             epd.set_lut(&mut spi, Some(lut)).unwrap();
             updates += 1;
 
