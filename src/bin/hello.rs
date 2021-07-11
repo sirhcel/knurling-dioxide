@@ -8,7 +8,6 @@ use dioxide::scd30;
 use embedded_graphics::{
     geometry::{Point, Size},
     mono_font::MonoTextStyle,
-    mono_font::ascii::FONT_10X20,
     pixelcolor::BinaryColor,
     prelude::*,
     primitives::{PrimitiveStyleBuilder, Rectangle},
@@ -21,6 +20,7 @@ use epd_waveshare::{
     prelude::*,
 };
 use heapless::String;
+use profont::{PROFONT_18_POINT, PROFONT_24_POINT};
 use nrf52840_hal::{
     Temp,
     Timer,
@@ -40,7 +40,7 @@ fn clear_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D) -> Resu
         .fill_color(BinaryColor::Off)
         .build();
 
-    Rectangle::new(Point::new(20, 100), Size::new(380, 159))
+    Rectangle::new(Point::new(20, 70), Size::new(380, 159))
         .into_styled(style)
         .draw(target)?;
 
@@ -48,26 +48,26 @@ fn clear_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D) -> Resu
 }
 
 fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
-    let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+    let style = MonoTextStyle::new(&PROFONT_18_POINT, BinaryColor::On);
     let mut message: String<16> = String::new();
 
     clear_measurement(target)?;
 
     write!(&mut message, "CO2: {:.2} ppm", measurement.co2_ppm)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 100), style)
+    Text::new(&message, Point::new(20, 70), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "T:   {:.2} °C", measurement.temperature_celsius)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 120), style)
+    Text::new(&message, Point::new(20, 90), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "RH:  {:.2} %", measurement.humidity_percent)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 140), style)
+    Text::new(&message, Point::new(20, 110), style)
         .draw(target)?;
 
     Ok(())
@@ -124,7 +124,7 @@ fn main() -> ! {
 
 
     let mut display = Display4in2::default();
-    let header_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+    let header_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
     // TODO: Use a large font from an external crate.
     Text::new("Hello Knurling!", Point::new(20, 30), header_style)
         .draw(&mut display)
