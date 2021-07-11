@@ -6,11 +6,12 @@ use core::fmt::Write;
 use dioxide as _; // global logger + panicking-behavior + memory layout
 use dioxide::scd30;
 use embedded_graphics::{
-    fonts::{Font6x8, Text},
+    mono_font::MonoTextStyle,
+    mono_font::ascii::FONT_6X10,
     pixelcolor::BinaryColor,
     prelude::*,
-    primitives::Rectangle,
-    style::{PrimitiveStyleBuilder, TextStyle},
+    primitives::{Rectangle, PrimitiveStyleBuilder},
+    text::Text,
 };
 use embedded_hal::blocking::delay::DelayMs;
 use heapless::String;
@@ -29,44 +30,41 @@ use shared_bus;
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
 
 
-
-fn build_co2_clear_rect() -> impl Iterator<Item = Pixel<BinaryColor>> {
+fn clear_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D) -> Result<(), D::Error> {
     let clear_style = PrimitiveStyleBuilder::new()
         .fill_color(BinaryColor::Off)
         .build();
 
-    Rectangle::new(Point::new(0, 10), Point::new(128, 40))
+    Rectangle::new(Point::new(0, 10), Size::new(128, 40))
         .into_styled(clear_style)
-        .into_iter()
+        .draw(target)?;
+
+    Ok(())
 }
 
-
-fn draw_measurement<D: DrawTarget<BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
-    let style = TextStyle::new(Font6x8, BinaryColor::On);
+fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
+    let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
     let mut message: String<16> = String::new();
 
-    build_co2_clear_rect().draw(target)?;
+    clear_measurement(target)?;
 
     // FIXME: Propagate errors from write!
 
     write!(&mut message, "CO2: {:.2} ppm", measurement.co2_ppm)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(0, 10))
-        .into_styled(style)
+    Text::new(&message, Point::new(0, 10), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "T:   {:.2} °C", measurement.temperature_celsius)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(0, 20))
-        .into_styled(style)
+    Text::new(&message, Point::new(0, 20), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "RH:  {:.2} %", measurement.humidity_percent)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(0, 30))
-        .into_styled(style)
+    Text::new(&message, Point::new(0, 30), style)
         .draw(target)?;
 
     Ok(())
@@ -113,8 +111,8 @@ fn main() -> ! {
 
     oled.init().unwrap();
     oled.flush().unwrap();
-    Text::new("Hello OLED!", Point::new(0, 32))
-        .into_styled(TextStyle::new(Font6x8, BinaryColor::On))
+    let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
+    Text::new("Hello OLED!", Point::new(0, 32), style)
         .draw(&mut oled)
         .unwrap();
     oled.flush().unwrap();

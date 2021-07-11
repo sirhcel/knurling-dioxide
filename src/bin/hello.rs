@@ -6,15 +6,13 @@ use core::fmt::Write;
 use dioxide as _; // global logger + panicking-behavior + memory layout
 use dioxide::scd30;
 use embedded_graphics::{
-    fonts::{Font12x16, Font24x32, Text},
-    geometry::Point,
+    geometry::{Point, Size},
+    mono_font::MonoTextStyle,
+    mono_font::ascii::FONT_10X20,
     pixelcolor::BinaryColor,
     prelude::*,
-    primitives::Rectangle,
-    style::{
-        PrimitiveStyleBuilder,
-        TextStyle,
-    },
+    primitives::{PrimitiveStyleBuilder, Rectangle},
+    text::Text,
 };
 use embedded_hal::blocking::delay::DelayMs;
 use epd_waveshare::{
@@ -37,41 +35,39 @@ use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
 const MAX_QUICK_UPDATES: usize = 10;
 
 
-fn build_clear_rect() -> impl Iterator<Item = Pixel<BinaryColor>> {
+fn clear_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D) -> Result<(), D::Error> {
     let style = PrimitiveStyleBuilder::new()
         .fill_color(BinaryColor::Off)
         .build();
 
-    Rectangle::new(Point::new(20, 100), Point::new(380, 159))
+    Rectangle::new(Point::new(20, 100), Size::new(380, 159))
         .into_styled(style)
-        .into_iter()
+        .draw(target)?;
+
+    Ok(())
 }
 
-
-fn draw_measurement<D: DrawTarget<BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
-    let style = TextStyle::new(Font12x16, BinaryColor::On);
+fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
+    let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
     let mut message: String<16> = String::new();
 
-    build_clear_rect().draw(target)?;
+    clear_measurement(target)?;
 
     write!(&mut message, "CO2: {:.2} ppm", measurement.co2_ppm)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 100))
-        .into_styled(style)
+    Text::new(&message, Point::new(20, 100), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "T:   {:.2} °C", measurement.temperature_celsius)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 120))
-        .into_styled(style)
+    Text::new(&message, Point::new(20, 120), style)
         .draw(target)?;
 
     message.clear();
     write!(&mut message, "RH:  {:.2} %", measurement.humidity_percent)
         .expect("failed to write to buffer");
-    Text::new(&message, Point::new(20, 140))
-        .into_styled(style)
+    Text::new(&message, Point::new(20, 140), style)
         .draw(target)?;
 
     Ok(())
@@ -110,7 +106,7 @@ fn main() -> ! {
     let spi_pins = spim::Pins{ sck: clk, miso: None, mosi: Some(din) };
     let mut spi = Spim::new(board.SPIM3, spi_pins, spim::Frequency::K500, spim::MODE_0, 0);
     let mut epd_timer = Timer::new(board.TIMER1);
-    let mut epd = EPD4in2::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
+    let mut epd = Epd4in2::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
 
 
     defmt::info!("Turning LED on ...");
@@ -128,12 +124,13 @@ fn main() -> ! {
 
 
     let mut display = Display4in2::default();
-    Text::new("Hello Knurling!", Point::new(20, 30))
-        .into_styled(TextStyle::new(Font24x32, BinaryColor::On))
+    let header_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+    // TODO: Use a large font from an external crate.
+    Text::new("Hello Knurling!", Point::new(20, 30), header_style)
         .draw(&mut display)
         .unwrap();
-    epd.update_frame(&mut spi, &display.buffer()).unwrap();
-    epd.display_frame(&mut spi).expect("display frame new graphics");
+    epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+    epd.display_frame(&mut spi, &mut epd_timer).expect("display frame new graphics");
 
 
     defmt::info!("Entering loop ...");
@@ -152,13 +149,13 @@ fn main() -> ! {
             defmt::info!("measurement: {:?}", measurement);
 
             defmt::info!("updates: {}", updates);
-            let lut = if updates % MAX_QUICK_UPDATES == 0 { RefreshLUT::FULL } else { RefreshLUT::QUICK };
+            let lut = if updates % MAX_QUICK_UPDATES == 0 { RefreshLut::Full } else { RefreshLut::Quick };
             epd.set_lut(&mut spi, Some(lut)).unwrap();
             updates += 1;
 
             draw_measurement(&mut display, &measurement).unwrap();
-            epd.update_frame(&mut spi, &display.buffer()).unwrap();
-            epd.display_frame(&mut spi).expect("display new measurement frame");
+            epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+            epd.display_frame(&mut spi, &mut epd_timer).expect("display new measurement frame");
         }
 
         timer.delay_ms(5000u32);
