@@ -148,6 +148,8 @@ fn main() -> ! {
             let measurement = sensor.get_measurement().unwrap();
             defmt::info!("measurement: {:?}", measurement);
 
+            epd.wake_up(&mut spi, &mut epd_timer).unwrap();
+
             defmt::info!("updates: {}", updates);
             if updates % MAX_QUICK_UPDATES == 0 {
                 draw_measurement(&mut display, &measurement).unwrap();
@@ -161,6 +163,7 @@ fn main() -> ! {
             }
 
             epd.display_frame(&mut spi, &mut epd_timer).expect("display new measurement frame");
+            epd.sleep(&mut spi, &mut epd_timer).unwrap();
             updates += 1;
         }
 
