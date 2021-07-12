@@ -40,7 +40,7 @@ fn clear_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D) -> Resu
         .fill_color(BinaryColor::Off)
         .build();
 
-    Rectangle::new(Point::new(20, 70), Size::new(380, 159))
+    Rectangle::new(Point::new(20, 50), Size::new(360, 70))
         .into_styled(style)
         .draw(target)?;
 
