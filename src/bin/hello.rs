@@ -2,6 +2,7 @@
 #![no_std]
 
 
+use cfg_if::cfg_if;
 use core::fmt::Write;
 use dioxide as _; // global logger + panicking-behavior + memory layout
 use dioxide::scd30;
@@ -15,7 +16,6 @@ use embedded_graphics::{
 };
 use embedded_hal::blocking::delay::DelayMs;
 use epd_waveshare::{
-    epd4in2::*,
     graphics::Display,
     prelude::*,
 };
@@ -30,6 +30,12 @@ use nrf52840_hal::{
     twim::{self, Twim},
 };
 use switch_hal::{OutputSwitch, InputSwitch, IntoSwitch};
+
+
+#[cfg(feature = "display-4in2")]
+use epd_waveshare::epd4in2::*;
+#[cfg(feature = "display-2in9_v2")]
+use epd_waveshare::epd2in9_v2::*;
 
 
 const MAX_QUICK_UPDATES: usize = 10;
@@ -106,7 +112,16 @@ fn main() -> ! {
     let spi_pins = spim::Pins{ sck: clk, miso: None, mosi: Some(din) };
     let mut spi = Spim::new(board.SPIM3, spi_pins, spim::Frequency::K500, spim::MODE_0, 0);
     let mut epd_timer = Timer::new(board.TIMER1);
-    let mut epd = Epd4in2::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
+    cfg_if! {
+        if #[cfg(feature = "display-4in2")] {
+            let mut epd = Epd4in2::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
+            let mut display = Display4in2::default();
+        } else if #[cfg(feature = "display-2in9_v2")] {
+            let mut epd = Epd2in9::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
+            let mut display = Display2in9::default();
+            display.set_rotation(DisplayRotation::Rotate270);
+        }
+    }
 
 
     defmt::info!("Turning LED on ...");
@@ -123,7 +138,6 @@ fn main() -> ! {
     sensor.start_continuous_measurement(pressure_mbar).unwrap();
 
 
-    let mut display = Display4in2::default();
     let header_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
     // TODO: Use a large font from an external crate.
     Text::new("Hello Knurling!", Point::new(20, 30), header_style)
@@ -155,14 +169,26 @@ fn main() -> ! {
                 draw_measurement(&mut display, &measurement).unwrap();
                 epd.set_lut(&mut spi, Some(RefreshLut::Full)).unwrap();
                 epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+                epd.display_frame(&mut spi, &mut epd_timer).expect("display new measurement frame");
             } else {
                 epd.set_lut(&mut spi, Some(RefreshLut::Quick)).unwrap();
                 epd.update_old_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+
                 draw_measurement(&mut display, &measurement).unwrap();
                 epd.update_new_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
+                cfg_if! {
+                    if #[cfg(feature = "display-4in2")] {
+                        // TODO: The 4.2 inch display driver panicks with
+                        // unimplemented! when calling display_new_frame. Is
+                        // there anything agains providing display_frame as
+                        // display_new_frame for this display as well?
+                        epd.display_frame(&mut spi, &mut epd_timer).unwrap();
+                    } else {
+                        epd.display_new_frame(&mut spi, &mut epd_timer).unwrap();
+                    }
+                }
             }
 
-            epd.display_frame(&mut spi, &mut epd_timer).expect("display new measurement frame");
             epd.sleep(&mut spi, &mut epd_timer).unwrap();
             updates += 1;
         }

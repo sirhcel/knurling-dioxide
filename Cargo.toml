@@ -8,6 +8,7 @@ version = "0.1.0"
 members = ["testsuite"]
 
 [dependencies]
+cfg-if = "1.0.0"
 cortex-m = "0.6.4"
 cortex-m-rt = "0.6.13"
 crc_all = "0.2.0"
@@ -25,11 +26,14 @@ shared-bus = "0.2.0"
 switch-hal = "0.3.2"
 
 [features]
-# set logging levels here
 default = [
+  "display-4in2",
+  # set logging levels here
   "defmt-default",
   # "dependency-a/defmt-trace",
 ]
+display-4in2 = []
+display-2in9_v2 = []
 
 # do NOT modify these features
 defmt-default = []
