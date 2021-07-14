@@ -176,17 +176,7 @@ fn main() -> ! {
 
                 draw_measurement(&mut display, &measurement).unwrap();
                 epd.update_new_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
-                cfg_if! {
-                    if #[cfg(feature = "display-4in2")] {
-                        // TODO: The 4.2 inch display driver panicks with
-                        // unimplemented! when calling display_new_frame. Is
-                        // there anything agains providing display_frame as
-                        // display_new_frame for this display as well?
-                        epd.display_frame(&mut spi, &mut epd_timer).unwrap();
-                    } else {
-                        epd.display_new_frame(&mut spi, &mut epd_timer).unwrap();
-                    }
-                }
+                epd.display_new_frame(&mut spi, &mut epd_timer).unwrap();
             }
 
             epd.sleep(&mut spi, &mut epd_timer).unwrap();
