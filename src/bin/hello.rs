@@ -141,7 +141,6 @@ fn main() -> ! {
 
 
     let header_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
-    // TODO: Use a large font from an external crate.
     Text::new("Hello Knurling!", Point::new(20, 30), header_style)
         .draw(&mut display)
         .unwrap();
