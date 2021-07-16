@@ -29,7 +29,6 @@ switch-hal = "0.3.2"
 
 [features]
 default = [
-  "display-4in2",
   # set logging levels here
   "defmt-default",
   # "dependency-a/defmt-trace",

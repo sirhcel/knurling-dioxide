@@ -120,6 +120,8 @@ fn main() -> ! {
             let mut epd = Epd2in9::new(&mut spi, cs, busy, dc, rst, &mut epd_timer).unwrap();
             let mut display = Display2in9::default();
             display.set_rotation(DisplayRotation::Rotate270);
+        } else {
+            compile_error!("Unsupported or missing display configuration. Please check Cargo.toml for supported ones.");
         }
     }
 
