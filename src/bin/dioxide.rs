@@ -10,7 +10,7 @@ use embedded_graphics::{
     mono_font::MonoTextStyle,
     pixelcolor::BinaryColor,
     prelude::*,
-    primitives::{PrimitiveStyleBuilder, Rectangle},
+    primitives::{Line, PrimitiveStyle, Rectangle},
     text::{Alignment, Text},
 };
 use embedded_hal::blocking::delay::DelayMs;
@@ -35,7 +35,65 @@ use nrf52840_hal::{
 use switch_hal::{OutputSwitch, IntoSwitch};
 
 
+const MAX_CO2_PPM: f32 = 2_500f32;
 const MAX_QUICK_UPDATES: usize = 10;
+const TICKS_MARGIN: i32 = 1;
+const TICKS_SIZE: i32 = 2;
+
+
+fn draw_co2_history<D: DrawTarget<Color = BinaryColor>, const N: usize>(
+    target: &mut D,
+    destination: &Rectangle,
+    measurements: &Queue<scd30::Measurement, N>) -> Result<(), D::Error>
+{
+    let bar_style = PrimitiveStyle::with_fill(BinaryColor::On);
+    let tick_style = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
+
+    let plot_rect = history_plot_rect(destination);
+    let origin = plot_rect.top_left;
+
+    let bar_width = plot_rect.size.width / measurements.capacity() as u32;
+    let norm_height = plot_rect.size.height;
+    let ppm_height_scaler = norm_height as f32 / MAX_CO2_PPM;
+
+    // Draw axis tick marks.
+    for ppm in (0..=2500).step_by(500) {
+        let y = norm_height as i32 - (ppm as f32 * ppm_height_scaler) as i32;
+
+        let margin = Point::new(1, 0);
+        let delta = Point::new(1, 0);
+        let left_start = Point::new(-1, y) - margin;
+        let right_start = Point::new(1, y) + plot_rect.size.x_axis() + margin;
+
+        Line::new(left_start, left_start - delta)
+            .translate(origin)
+            .into_styled(tick_style)
+            .draw(target)?;
+        Line::new(right_start, right_start + delta)
+            .translate(origin)
+            .into_styled(tick_style)
+            .draw(target)?;
+    }
+
+    // Draw actual data.
+    for (index, measurement) in measurements.iter().enumerate() {
+        // TODO: Clean up type conversions below.
+        let offset = Point::new(index as i32 * bar_width as i32, 0);
+        let height = core::cmp::min(norm_height, (measurement.co2_ppm * ppm_height_scaler) as u32);
+
+        let pos = Point::new(0, (norm_height - height + 1) as i32);
+        let size = Size::new(bar_width, height);
+        let rect = Rectangle::new(origin + offset + pos, size);
+
+        defmt::debug!("{}: offset: {}, height: {}, rect: {}", index,
+            defmt::Debug2Format(&offset), height,
+            defmt::Debug2Format(&rect));
+
+        rect.into_styled(bar_style).draw(target)?;
+    }
+
+    Ok(())
+}
 
 
 fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
@@ -72,41 +130,6 @@ fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurem
     Ok(())
 }
 
-fn draw_measurements<D: DrawTarget<Color = BinaryColor>, const N: usize>(
-    target: &mut D,
-    destination: &Rectangle,
-    measurements: &Queue<scd30::Measurement, N>) -> Result<(), D::Error>
-{
-    let bar_style = PrimitiveStyleBuilder::new()
-        .fill_color(BinaryColor::On)
-        .build();
-
-    let origin = destination.top_left;
-
-    let bar_width = destination.size.width / measurements.capacity() as u32;
-    let norm_height = destination.size.height;
-    let max_co2_ppm = 2_500;
-    let ppm_height_scaler = norm_height as f32 / max_co2_ppm as f32;
-
-    for (index, measurement) in measurements.iter().enumerate() {
-        // TODO: Clean up type conversions below.
-        let offset = Point::new(index as i32 * bar_width as i32, 0);
-        let height = core::cmp::min(norm_height, (measurement.co2_ppm * ppm_height_scaler) as u32);
-
-        let pos = Point::new(0, (norm_height - height) as i32);
-        let size = Size::new(bar_width, height);
-        let rect = Rectangle::new(origin + offset + pos, size);
-
-        defmt::debug!("{}: offset: {}, height: {}, rect: {}", index,
-            defmt::Debug2Format(&offset), height,
-            defmt::Debug2Format(&rect));
-
-        rect.into_styled(bar_style).draw(target)?;
-    }
-
-    Ok(())
-}
-
 
 fn draw_stats<D: DrawTarget<Color = BinaryColor>>(
     target: &mut D,
@@ -121,6 +144,12 @@ fn draw_stats<D: DrawTarget<Color = BinaryColor>>(
     Text::new(&message, Point::new(5, 294), style).draw(target)?;
 
     Ok(())
+}
+
+
+fn history_plot_rect(destination: &Rectangle) -> Rectangle {
+    let offset = TICKS_MARGIN + TICKS_SIZE;
+    destination.offset(-offset)
 }
 
 
@@ -177,7 +206,7 @@ fn main() -> ! {
     let mut updates = 0usize;
     let mut measurements: Queue<scd30::Measurement, 108> = Queue::new();
 
-    let measurements_destination = Rectangle::new(Point::new(10, 175), Size::new(108, 50));
+    let measurements_destination = Rectangle::new(Point::new(7, 175), Size::new(114, 56));
 
     loop {
         led_1.on().unwrap();
@@ -198,7 +227,7 @@ fn main() -> ! {
             if updates % MAX_QUICK_UPDATES == 0 {
                 display.clear_buffer(DEFAULT_BACKGROUND_COLOR);
                 draw_measurement(&mut display, &measurement).unwrap();
-                draw_measurements(&mut display, &measurements_destination, &measurements).unwrap();
+                draw_co2_history(&mut display, &measurements_destination, &measurements).unwrap();
                 draw_stats(&mut display, updates, measurements.len()).unwrap();
                 epd.set_lut(&mut spi, Some(RefreshLut::Full)).unwrap();
                 epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
@@ -209,7 +238,7 @@ fn main() -> ! {
 
                 display.clear_buffer(DEFAULT_BACKGROUND_COLOR);
                 draw_measurement(&mut display, &measurement).unwrap();
-                draw_measurements(&mut display, &measurements_destination, &measurements).unwrap();
+                draw_co2_history(&mut display, &measurements_destination, &measurements).unwrap();
                 draw_stats(&mut display, updates, measurements.len()).unwrap();
                 epd.update_new_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
                 epd.display_new_frame(&mut spi, &mut epd_timer).unwrap();
