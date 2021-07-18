@@ -34,7 +34,7 @@ pub struct FirmwareVersion {
 }
 
 
-#[derive(Format)]
+#[derive(Clone, Copy, Debug, Format, PartialEq)]
 pub struct Measurement {
     pub co2_ppm: f32,
     pub temperature_celsius: f32,
