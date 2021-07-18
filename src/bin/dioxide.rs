@@ -74,16 +74,17 @@ fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurem
 
 fn draw_measurements<D: DrawTarget<Color = BinaryColor>, const N: usize>(
     target: &mut D,
+    destination: &Rectangle,
     measurements: &Queue<scd30::Measurement, N>) -> Result<(), D::Error>
 {
     let bar_style = PrimitiveStyleBuilder::new()
         .fill_color(BinaryColor::On)
         .build();
 
-    let origin = Point::new(5, 200);
+    let origin = destination.top_left;
 
-    let bar_width = 256u32 / measurements.capacity() as u32;
-    let norm_height = 50;
+    let bar_width = destination.size.width / measurements.capacity() as u32;
+    let norm_height = destination.size.height;
     let max_co2_ppm = 2_500;
     let ppm_height_scaler = norm_height as f32 / max_co2_ppm as f32;
 
@@ -174,7 +175,9 @@ fn main() -> ! {
     defmt::info!("Entering loop ...");
 
     let mut updates = 0usize;
-    let mut measurements: Queue<scd30::Measurement, 256> = Queue::new();
+    let mut measurements: Queue<scd30::Measurement, 108> = Queue::new();
+
+    let measurements_destination = Rectangle::new(Point::new(10, 175), Size::new(108, 50));
 
     loop {
         led_1.on().unwrap();
@@ -195,7 +198,7 @@ fn main() -> ! {
             if updates % MAX_QUICK_UPDATES == 0 {
                 display.clear_buffer(DEFAULT_BACKGROUND_COLOR);
                 draw_measurement(&mut display, &measurement).unwrap();
-                draw_measurements(&mut display, &measurements).unwrap();
+                draw_measurements(&mut display, &measurements_destination, &measurements).unwrap();
                 draw_stats(&mut display, updates, measurements.len()).unwrap();
                 epd.set_lut(&mut spi, Some(RefreshLut::Full)).unwrap();
                 epd.update_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
@@ -206,7 +209,7 @@ fn main() -> ! {
 
                 display.clear_buffer(DEFAULT_BACKGROUND_COLOR);
                 draw_measurement(&mut display, &measurement).unwrap();
-                draw_measurements(&mut display, &measurements).unwrap();
+                draw_measurements(&mut display, &measurements_destination, &measurements).unwrap();
                 draw_stats(&mut display, updates, measurements.len()).unwrap();
                 epd.update_new_frame(&mut spi, &display.buffer(), &mut epd_timer).unwrap();
                 epd.display_new_frame(&mut spi, &mut epd_timer).unwrap();
