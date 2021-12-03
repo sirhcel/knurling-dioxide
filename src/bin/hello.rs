@@ -132,7 +132,7 @@ fn main() -> ! {
 
     defmt::info!("Measuring temperature ...");
     let temperature = temp.measure();
-    defmt::info!("temperature: {=f32} °C", temperature.to_num());
+    defmt::info!("temperature: {} °C", temperature.to_num::<f32>());
 
     let sensor_fw_version = sensor.get_firmware_version().unwrap();
     defmt::info!("SCD30 firmware version: {:?}", sensor_fw_version);
