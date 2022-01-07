@@ -5,7 +5,6 @@ edition = "2018"
 version = "0.1.0"
 
 [workspace]
-members = ["testsuite"]
 
 [dependencies]
 cfg-if = "1.0.0"
