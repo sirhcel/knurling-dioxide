@@ -14,6 +14,7 @@ use embedded_graphics::{
     text::{Alignment, Text},
 };
 use embedded_hal::blocking::delay::DelayMs;
+use embedded_vintage_fonts::FONT_6X8;
 use epd_waveshare::{
     epd2in9_v2::*,
     graphics::Display,
@@ -97,7 +98,7 @@ fn draw_co2_history<D: DrawTarget<Color = BinaryColor>, const N: usize>(
 
 
 fn draw_measurement<D: DrawTarget<Color = BinaryColor>>(target: &mut D, measurement: &scd30::Measurement) -> Result<(), D::Error> {
-    let label_style = MonoTextStyle::new(&PROFONT_10_POINT, BinaryColor::On);
+    let label_style = MonoTextStyle::new(&FONT_6X8, BinaryColor::On);
     let value_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
     let mut message: String<16> = String::new();
 
