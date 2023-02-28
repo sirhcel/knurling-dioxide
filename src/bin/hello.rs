@@ -96,8 +96,8 @@ fn main() -> ! {
 
     let button_1 = pins_0.p0_11.into_pullup_input().into_active_low_switch();
 
-    let scl = pins_0.p0_30.degrade();
-    let sda = pins_0.p0_31.degrade();
+    let scl = pins_0.p0_30.into_floating_input().degrade();
+    let sda = pins_0.p0_31.into_floating_input().degrade();
     let i2c_pins = twim::Pins{ scl, sda };
     let i2c = Twim::new(board.TWIM0, i2c_pins, twim::Frequency::K100);
     let mut sensor = scd30::Scd30::new(i2c);
@@ -109,7 +109,7 @@ fn main() -> ! {
     let dc = pins_1.p1_04.into_push_pull_output(Level::Low);
     let rst = pins_1.p1_05.into_push_pull_output(Level::Low);
     let busy = pins_1.p1_06.into_floating_input();
-    let spi_pins = spim::Pins{ sck: clk, miso: None, mosi: Some(din) };
+    let spi_pins = spim::Pins{ sck: Some(clk), miso: None, mosi: Some(din) };
     let mut spi = Spim::new(board.SPIM3, spi_pins, spim::Frequency::K500, spim::MODE_0, 0);
     let mut epd_timer = Timer::new(board.TIMER1);
     cfg_if! {

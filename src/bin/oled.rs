@@ -86,8 +86,8 @@ fn main() -> ! {
 
     let button_1 = pins_0.p0_11.into_pullup_input().into_active_low_switch();
 
-    let scl = pins_0.p0_30.degrade();
-    let sda = pins_0.p0_31.degrade();
+    let scl = pins_0.p0_30.into_floating_input().degrade();
+    let sda = pins_0.p0_31.into_floating_input().degrade();
     let i2c_pins = twim::Pins{ scl, sda };
     let i2c = Twim::new(board.TWIM0, i2c_pins, twim::Frequency::K100);
     let shared_i2c = shared_bus::BusManagerSimple::new(i2c);
